@@ -8,7 +8,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build:browser": "esbuild src/browser.ts --bundle --outfile=dist/agent-sdk.js --format=iife --global-name=AgentSDK",
+    "build": "tsc && npm run build:browser",
     "dev": "tsc --watch",
     "test": "jest",
     "lint": "eslint src --ext .ts"
