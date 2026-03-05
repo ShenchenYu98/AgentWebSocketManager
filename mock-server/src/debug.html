@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Debug Test</title>
+</head>
+<body>
+  <h1>Debug Test</h1>
+  <div id="output"></div>
+  <script>
+    const out = document.getElementById('output');
+    function log(msg) {
+      out.innerHTML += msg + '<br>';
+    }
+    
+    log('1. Page loaded');
+    log('2. AgentSDK exists: ' + (typeof AgentSDK));
+    log('3. window.AgentSDK: ' + (typeof window.AgentSDK));
+  </script>
+  <script src="../../dist/agent-sdk.js"></script>
+  <script>
+    log('4. After script load, AgentSDK: ' + (typeof AgentSDK));
+    log('5. window.AgentSDK: ' + (typeof window.AgentSDK));
+  </script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AgentSDK Test</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #fff; }
+    .btn { padding: 10px 20px; background: #00d9ff; border: none; cursor: pointer; margin: 5px; }
+    .btn:disabled { background: #666; }
+    #log { background: #000; padding: 10px; height: 300px; overflow: auto; margin-top: 20px; }
+    .error { color: #f55; }
+    .success { color: #5f5; }
+    .info { color: #55f; }
+  </style>
+</head>
+<body>
+  <h1>AgentSDK Connection Test</h1>
+  <div>
+    <input type="text" id="url" value="ws://localhost:8082" style="width: 300px;">
+    <button class="btn" id="connectBtn" onclick="connect()">Connect</button>
+    <button class="btn" id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+  </div>
+  <div style="margin-top: 10px;">
+    <button class="btn" onclick="sendChat()">Send Chat</button>
+    <button class="btn" onclick="sendStream()">Send Stream</button>
+  </div>
+  <div id="log"></div>
+  
+  <script src="../../dist/agent-sdk.js"></script>
+  <script>
+    const log = document.getElementById('log');
+    let sdk = null;
+    
+    function addLog(msg, type = 'info') {
+      const div = document.createElement('div');
+      div.className = type;
+      div.textContent = new Date().toISOString() + ' ' + msg;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+    
+    function connect() {
+      const url = document.getElementById('url').value;
+      addLog('Connecting to ' + url + '...', 'info');
+      
+      // Check if AgentSDK is loaded
+      addLog('AgentSDK type: ' + typeof AgentSDK, 'info');
+      
+      sdk = new AgentSDK({
+        url: url,
+        reconnect: true,
+        maxReconnectAttempts: 3,
+        heartbeatInterval: 20000,
+        requestTimeout: 10000,
+      });
+      
+      sdk.on('open', function() {
+        addLog('Connected!', 'success');
+        document.getElementById('connectBtn').disabled = true;
+        document.getElementById('disconnectBtn').disabled = false;
+      });
+      
+      sdk.on('close', function(event) {
+        addLog('Disconnected: ' + JSON.stringify(event), 'error');
+        document.getElementById('connectBtn').disabled = false;
+        document.getElementById('disconnectBtn').disabled = true;
+      });
+      
+      sdk.on('error', function(err) {
+        addLog('Error: ' + err, 'error');
+      });
+      
+      sdk.on('message', function(data) {
+        addLog('Message: ' + JSON.stringify(data).substring(0, 100), 'info');
+      });
+      
+      sdk.on('stream', function(chunk) {
+        addLog('Stream chunk: ' + chunk.chunk, 'success');
+      });
+      
+      sdk.connect();
+      
+      // Timeout check
+      setTimeout(function() {
+        if (sdk && !sdk.isConnected()) {
+          addLog('Connection timeout!', 'error');
+        }
+      }, 5000);
+    }
+    
+    function disconnect() {
+      if (sdk) {
+        sdk.disconnect();
+      }
+    }
+    
+    async function sendChat() {
+      if (!sdk || !sdk.isConnected()) {
+        addLog('Not connected!', 'error');
+        return;
+      }
+      try {
+        const resp = await sdk.send({ type: 'chat', payload: { content: 'Hello' } });
+        addLog('Chat response: ' + JSON.stringify(resp), 'success');
+      } catch (e) {
+        addLog('Chat error: ' + e, 'error');
+      }
+    }
+    
+    async function sendStream() {
+      if (!sdk || !sdk.isConnected()) {
+        addLog('Not connected!', 'error');
+        return;
+      }
+      try {
+        const resp = await sdk.send({ type: 'stream', payload: { content: 'Streaming test' } });
+        addLog('Stream response: ' + JSON.stringify(resp), 'success');
+      } catch (e) {
+        addLog('Stream error: ' + e, 'error');
+      }
+    }
+  </script>
+</body>
+</html>

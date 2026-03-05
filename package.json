@@ -1,0 +1,29 @@
+{
+  "name": "agent-websocket-sdk",
+  "version": "1.0.0",
+  "description": "Agent WebSocket Frontend SDK for real-time communication with Agent server",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "websocket",
+    "agent",
+    "sdk",
+    "realtime"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.9.3"
+  }
+}

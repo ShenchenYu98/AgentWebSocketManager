@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentSDK Web 测试控制台</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      background: #1a1a2e; 
+      color: #eee;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    h1 { color: #00d9ff; margin-bottom: 20px; font-size: 24px; }
+    h2 { color: #00d9ff; margin: 20px 0 10px; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+    
+    .panel {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      border: 1px solid #0f3460;
+    }
+    
+    .row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .col { flex: 1; min-width: 200px; }
+    
+    label { display: block; margin-bottom: 5px; font-size: 12px; color: #888; }
+    input, select, textarea { 
+      width: 100%; 
+      padding: 8px 12px; 
+      background: #0f3460; 
+      border: 1px solid #1a1a2e;
+      color: #fff;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    input:focus, textarea:focus { outline: none; border-color: #00d9ff; }
+    
+    button {
+      padding: 8px 20px;
+      background: #00d9ff;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    button:hover { background: #00b8d4; }
+    button:disabled { background: #555; cursor: not-allowed; }
+    button.danger { background: #e94560; }
+    button.success { background: #00e676; }
+    
+    .status {
+      display: inline-block;
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .status.disconnected { background: #e94560; }
+    .status.connecting { background: #ffc107; color: #000; }
+    .status.connected { background: #00e676; color: #000; }
+    
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    
+    .log-container {
+      background: #0a0a15;
+      border-radius: 4px;
+      height: 300px;
+      overflow-y: auto;
+      padding: 10px;
+      font-family: 'Consolas', monospace;
+      font-size: 12px;
+    }
+    .log { margin: 2px 0; padding: 3px 0; border-bottom: 1px solid #222; }
+    .log.time { color: #666; }
+    .log.open { color: #00e676; }
+    .log.close { color: #e94560; }
+    .log.error { color: #ff5252; }
+    .log.stream { color: #00d9ff; }
+    .log.message { color: #ffc107; }
+    .log.info { color: #888; }
+    
+    .message-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .message-item {
+      background: #0f3460;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .message-item .type { color: #00d9ff; font-weight: bold; }
+    .message-item .content { color: #ccc; margin-top: 3px; }
+    
+    .session-list {
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .session-item {
+      background: #0f3460;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+    .session-item.active { border-left: 3px solid #00e676; }
+    
+    .stats { display: flex; gap: 20px; flex-wrap: wrap; }
+    .stat { text-align: center; }
+    .stat-value { font-size: 24px; font-weight: bold; color: #00d9ff; }
+    .stat-label { font-size: 12px; color: #666; }
+    
+    .stream-output {
+      background: #0a0a15;
+      border-radius: 4px;
+      padding: 10px;
+      min-height: 60px;
+      font-family: 'Consolas', monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🤖 AgentSDK Web 测试控制台</h1>
+    
+    <!-- 连接配置 -->
+    <div class="panel">
+      <h2>连接配置</h2>
+      <div class="row">
+        <div class="col">
+          <label>WebSocket URL</label>
+          <input type="text" id="wsUrl" value="ws://localhost:8082">
+        </div>
+        <div class="col">
+          <label>Token (可选)</label>
+          <input type="text" id="token" placeholder="输入Token">
+        </div>
+        <div class="col">
+          <label>心跳间隔 (ms)</label>
+          <input type="number" id="heartbeatInterval" value="20000">
+        </div>
+        <div class="col">
+          <label>请求超时 (ms)</label>
+          <input type="number" id="requestTimeout" value="20000">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col" style="display: flex; align-items: flex-end; gap: 10px;">
+          <button id="connectBtn" onclick="toggleConnection()">连接</button>
+          <button id="disconnectBtn" class="danger" onclick="disconnect()" disabled>断开</button>
+          <span id="connectionStatus" class="status disconnected">未连接</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 统计信息 -->
+    <div class="panel">
+      <h2>连接状态</h2>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value" id="statSent">0</div>
+          <div class="stat-label">已发送</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="statReceived">0</div>
+          <div class="stat-label">已接收</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="statStream">0</div>
+          <div class="stat-label">流式消息</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="statSession">0</div>
+          <div class="stat-label">会话数</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="statReconnect">0</div>
+          <div class="stat-label">重连次数</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="grid">
+      <!-- 发送消息 -->
+      <div class="panel">
+        <h2>发送消息</h2>
+        <div class="row">
+          <div class="col">
+            <label>消息类型</label>
+            <select id="msgType">
+              <option value="chat">chat</option>
+              <option value="stream">stream</option>
+              <option value="ping">ping</option>
+              <option value="createSession">createSession</option>
+              <option value="switchSession">switchSession</option>
+              <option value="closeSession">closeSession</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>会话ID (可选)</label>
+            <input type="text" id="msgSessionId" placeholder="自动使用当前会话">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label>消息内容 (JSON)</label>
+            <textarea id="msgPayload" rows="3" placeholder='{"content": "Hello"}'></textarea>
+          </div>
+        </div>
+        <button onclick="sendMessage()" id="sendBtn" disabled>发送消息</button>
+        <div id="responseContainer" class="message-list" style="margin-top: 15px;"></div>
+      </div>
+      
+      <!-- 会话管理 -->
+      <div class="panel">
+        <h2>会话管理</h2>
+        <div class="row">
+          <div class="col">
+            <label>用户ID (可选)</label>
+            <input type="text" id="userId" placeholder="user123">
+          </div>
+          <div style="display: flex; align-items: flex-end; gap: 10px;">
+            <button onclick="createSession()">创建会话</button>
+            <button class="danger" onclick="closeCurrentSession()">关闭当前会话</button>
+          </div>
+        </div>
+        <div id="sessionList" class="session-list" style="margin-top: 10px;"></div>
+        <div style="margin-top: 10px; font-size: 12px; color: #666;">
+          当前会话: <span id="currentSessionId" style="color: #00d9ff;">无</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 流式输出 -->
+    <div class="panel">
+      <h2>流式消息输出</h2>
+      <div class="row">
+        <button onclick="clearStream()">清空</button>
+      </div>
+      <div id="streamOutput" class="stream-output"></div>
+    </div>
+    
+    <!-- 事件日志 -->
+    <div class="panel">
+      <h2>事件日志</h2>
+      <div class="row">
+        <button onclick="clearLogs()">清空日志</button>
+      </div>
+      <div id="logContainer" class="log-container"></div>
+    </div>
+  </div>
+
+  <script src="../../dist/agent-sdk.js"></script>
+  <script>
+    // Get the SDK class from the module
+    const SDK = window.AgentSDK && window.AgentSDK.AgentSDK ? window.AgentSDK.AgentSDK : 
+                window.AgentSDK && window.AgentSDK.default ? window.AgentSDK.default : 
+                window.AgentSDK;
+    
+    // Debug: Log what's available
+    console.log('=== SDK Debug Info ===');
+    console.log('window.AgentSDK:', window.AgentSDK);
+    console.log('window.AgentSDK.AgentSDK:', window.AgentSDK?.AgentSDK);
+    console.log('window.AgentSDK.default:', window.AgentSDK?.default);
+    console.log('SDK (final):', SDK);
+    console.log('typeof SDK:', typeof SDK);
+    
+    if (typeof SDK !== 'function') {
+      console.error('ERROR: SDK is not a constructor function!');
+      console.error('SDK:', SDK);
+    }
+    
+    let sdk = null;
+    let stats = { sent: 0, received: 0, stream: 0, reconnect: 0 };
+    let streamChunks = [];
+    let currentStreamRequestId = null;
+    
+    function log(message, type = 'info') {
+      const container = document.getElementById('logContainer');
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = `log ${type}`;
+      div.innerHTML = `<span class="time">[${time}]</span> ${message}`;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    function updateStats() {
+      document.getElementById('statSent').textContent = stats.sent;
+      document.getElementById('statReceived').textContent = stats.received;
+      document.getElementById('statStream').textContent = stats.stream;
+      document.getElementById('statReconnect').textContent = stats.reconnect;
+    }
+    
+    function updateConnectionStatus(status) {
+      const statusEl = document.getElementById('connectionStatus');
+      statusEl.className = `status ${status}`;
+      statusEl.textContent = status === 'connected' ? '已连接' : 
+                            status === 'connecting' ? '连接中...' : '未连接';
+      
+      document.getElementById('connectBtn').disabled = status === 'connected' || status === 'connecting';
+      document.getElementById('disconnectBtn').disabled = status !== 'connected';
+      document.getElementById('sendBtn').disabled = status !== 'connected';
+    }
+    
+    function toggleConnection() {
+      // #region agent log
+      fetch('http://127.0.0.1:7580/ingest/61981bcc-f412-40ea-9f82-1f46e11c7743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0e0ae8'},body:JSON.stringify({sessionId:'0e0ae8',runId:'pre-fix',hypothesisId:'H1',location:'test-console.html:302',message:'toggleConnection called',data:{hasSdk:!!sdk},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      if (sdk) {
+        sdk.destroy();
+        sdk = null;
+      }
+      connect();
+    }
+    
+    function connect() {
+      const url = document.getElementById('wsUrl').value;
+      const token = document.getElementById('token').value;
+      const heartbeatInterval = parseInt(document.getElementById('heartbeatInterval').value);
+      const requestTimeout = parseInt(document.getElementById('requestTimeout').value);
+
+      // #region agent log
+      fetch('http://127.0.0.1:7580/ingest/61981bcc-f412-40ea-9f82-1f46e11c7743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0e0ae8'},body:JSON.stringify({sessionId:'0e0ae8',runId:'pre-fix',hypothesisId:'H1',location:'test-console.html:310',message:'connect called',data:{url,hasSDK:!!SDK},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+
+      if (typeof SDK !== 'function') {
+        log('错误: SDK 未正确加载', 'error');
+        console.error('SDK is not available:', SDK);
+        return;
+      }
+
+      updateConnectionStatus('connecting');
+      log('正在连接...', 'info');
+      
+      sdk = new SDK({
+        url,
+        token: token || undefined,
+        reconnect: true,
+        maxReconnectAttempts: 5,
+        heartbeatInterval,
+        requestTimeout,
+      });
+      
+      sdk.on('open', () => {
+        // #region agent log
+        fetch('http://127.0.0.1:7580/ingest/61981bcc-f412-40ea-9f82-1f46e11c7743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0e0ae8'},body:JSON.stringify({sessionId:'0e0ae8',runId:'pre-fix',hypothesisId:'H2',location:'test-console.html:328',message:'sdk open event',data:{},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        updateConnectionStatus('connected');
+        log('连接已建立', 'open');
+      });
+      
+      sdk.on('close', (event) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7580/ingest/61981bcc-f412-40ea-9f82-1f46e11c7743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0e0ae8'},body:JSON.stringify({sessionId:'0e0ae8',runId:'pre-fix',hypothesisId:'H2',location:'test-console.html:333',message:'sdk close event',data:{code:event?.code},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        updateConnectionStatus('disconnected');
+        log(`连接关闭: code=${event?.code || 'N/A'}`, 'close');
+      });
+      
+      sdk.on('error', (error) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7580/ingest/61981bcc-f412-40ea-9f82-1f46e11c7743',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0e0ae8'},body:JSON.stringify({sessionId:'0e0ae8',runId:'pre-fix',hypothesisId:'H2',location:'test-console.html:338',message:'sdk error event',data:{error:String(error)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        log(`错误: ${error}`, 'error');
+      });
+      
+      sdk.on('message', (data) => {
+        stats.received++;
+        updateStats();
+        log(`消息: ${JSON.stringify(data)}`, 'message');
+      });
+      
+      sdk.on('stream', (chunk) => {
+        stats.stream++;
+        updateStats();
+        
+        if (currentStreamRequestId !== chunk.requestId) {
+          currentStreamRequestId = chunk.requestId;
+          streamChunks = [];
+          document.getElementById('streamOutput').textContent = '';
+        }
+        
+        if (!chunk.done) {
+          streamChunks.push(chunk.chunk);
+          document.getElementById('streamOutput').textContent = streamChunks.join('');
+        } else {
+          log(`流式完成: ${streamChunks.join('')}`, 'stream');
+        }
+      });
+      
+      sdk.on('reconnecting', () => {
+        stats.reconnect++;
+        updateStats();
+        log('正在重连...', 'info');
+      });
+      
+      sdk.connect();
+    }
+    
+    function disconnect() {
+      if (sdk) {
+        sdk.disconnect();
+        updateConnectionStatus('disconnected');
+        log('已断开连接', 'info');
+      }
+    }
+    
+    async function sendMessage() {
+      if (!sdk) return;
+      
+      const type = document.getElementById('msgType').value;
+      const sessionId = document.getElementById('msgSessionId').value;
+      let payload;
+      
+      try {
+        payload = JSON.parse(document.getElementById('msgPayload').value || '{}');
+      } catch (e) {
+        payload = {};
+      }
+      
+      const request = { type, payload };
+      if (sessionId) request.sessionId = sessionId;
+      
+      stats.sent++;
+      updateStats();
+      log(`发送: ${type}`, 'info');
+      
+      try {
+        const response = await sdk.send(request);
+        stats.received++;
+        updateStats();
+        
+        const container = document.getElementById('responseContainer');
+        const div = document.createElement('div');
+        div.className = 'message-item';
+        div.innerHTML = `
+          <div class="type">${type}</div>
+          <div class="content">${JSON.stringify(response, null, 2)}</div>
+        `;
+        container.insertBefore(div, container.firstChild);
+        
+        log(`响应: ${JSON.stringify(response)}`, 'message');
+      } catch (error) {
+        log(`错误: ${error}`, 'error');
+      }
+    }
+    
+    function createSession() {
+      if (!sdk) return;
+      
+      const userId = document.getElementById('userId').value;
+      const session = sdk.createSession(userId || undefined);
+      
+      log(`创建会话: ${session.sessionId}`, 'info');
+      updateSessionList();
+    }
+    
+    function closeCurrentSession() {
+      if (!sdk) return;
+      
+      sdk.closeSession();
+      log('会话已关闭', 'info');
+      updateSessionList();
+    }
+    
+    function switchToSession(sessionId) {
+      if (!sdk) return;
+      
+      sdk.switchSession(sessionId);
+      log(`切换到会话: ${sessionId}`, 'info');
+      updateSessionList();
+    }
+    
+    function updateSessionList() {
+      const container = document.getElementById('sessionList');
+      const currentSession = sdk?.getCurrentSession();
+      
+      document.getElementById('currentSessionId').textContent = currentSession?.sessionId || '无';
+      
+      if (!sdk) {
+        container.innerHTML = '';
+        document.getElementById('statSession').textContent = '0';
+        return;
+      }
+      
+      const sessions = sdk.getAllSessions?.() || [];
+      document.getElementById('statSession').textContent = sessions.length;
+      
+      container.innerHTML = sessions.map(s => `
+        <div class="session-item ${s.sessionId === currentSession?.sessionId ? 'active' : ''}">
+          <div>
+            <div style="color: #00d9ff;">${s.sessionId}</div>
+            <div style="color: #666;">${s.userId || 'anonymous'} | ${s.status}</div>
+          </div>
+          <button onclick="switchToSession('${s.sessionId}')" ${s.status === 'closed' ? 'disabled' : ''}>切换</button>
+        </div>
+      `).join('');
+    }
+    
+    function clearStream() {
+      streamChunks = [];
+      currentStreamRequestId = null;
+      document.getElementById('streamOutput').textContent = '';
+    }
+    
+    function clearLogs() {
+      document.getElementById('logContainer').innerHTML = '';
+    }
+    
+    // 初始化
+    log('测试控制台已就绪', 'info');
+  </script>
+</body>
+</html>
